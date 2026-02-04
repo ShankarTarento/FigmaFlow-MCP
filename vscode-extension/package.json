@@ -1,0 +1,91 @@
+{
+  "name": "figmaflow-mcp",
+  "displayName": "FigmaFlow MCP",
+  "description": "Generate Flutter widgets and tests from Figma designs using AI",
+  "version": "0.1.0",
+  "publisher": "figmaflow",
+  "icon": "assets/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/figmaflow-mcp"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "figma",
+    "flutter",
+    "mcp",
+    "ai",
+    "code generation"
+  ],
+  "activationEvents": [
+    "onCommand:figmaflow.setupConfiguration",
+    "onCommand:figmaflow.generateWidget",
+    "onCommand:figmaflow.generateTests"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "figmaflow.setupConfiguration",
+        "title": "FigmaFlow: Setup API Keys",
+        "icon": "$(key)"
+      },
+      {
+        "command": "figmaflow.generateWidget",
+        "title": "FigmaFlow: Generate Flutter Widget from Figma"
+      },
+      {
+        "command": "figmaflow.generateTests",
+        "title": "FigmaFlow: Generate Widget Tests from Figma"
+      }
+    ],
+    "configuration": {
+      "title": "FigmaFlow MCP",
+      "properties": {
+        "figmaflow.mcpServerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to MCP server (leave empty for bundled server)"
+        },
+        "figmaflow.aiModel": {
+          "type": "string",
+          "default": "gpt-4o",
+          "enum": [
+            "gpt-4o",
+            "gpt-4",
+            "claude-3-5-sonnet"
+          ],
+          "description": "AI model to use for code generation"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "axios": "^1.6.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.50.0",
+    "typescript": "^5.3.0",
+    "@vscode/test-electron": "^2.3.0"
+  }
+}

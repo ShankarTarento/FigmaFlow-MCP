@@ -1,0 +1,351 @@
+Product Requirements Document (PRD)
+Product Name
+
+Figma MCP for GitHub Copilot (VS Code)
+
+1. Product Overview
+1.1 Product Vision
+
+Enable developers and QA engineers—especially on Linux—to seamlessly convert Figma designs into Flutter UI code, widget tests, and QA test cases directly inside VS Code, while working alongside GitHub Copilot.
+
+The product acts as an AI-powered bridge between design and development using:
+
+Figma API (design source)
+
+MCP (orchestration & intelligence)
+
+VS Code extension (developer interface)
+
+1.2 Problem to Solve
+
+Developers today face:
+
+Manual interpretation of Figma designs
+
+Inconsistent UI implementation
+
+Time-consuming test creation
+
+No Linux-native design → code/test tooling
+
+GitHub Copilot lacking design context
+
+1.3 Target Outcome
+
+Reduce:
+
+UI implementation time
+
+QA test creation effort
+
+Design-to-dev misunderstandings
+
+Increase:
+
+Code consistency
+
+Test coverage
+
+Developer velocity
+
+2. Target Users & Personas
+Primary Personas
+👨‍💻 Flutter Developer
+
+Works in VS Code on Linux
+
+Uses GitHub Copilot daily
+
+Wants faster UI implementation from Figma
+
+🧪 QA / Automation Engineer
+
+Writes widget tests and manual test cases
+
+Wants tests generated from UI designs
+
+Needs structured, editable output
+
+Secondary Personas
+
+Tech leads
+
+Product engineers
+
+Design system maintainers
+
+3. User Stories
+Core User Stories
+
+As a developer, I want to generate Flutter widgets from a Figma screen so that I don’t manually recreate UI layouts.
+
+As a QA engineer, I want widget tests generated from designs so that UI changes are covered automatically.
+
+As a developer, I want to run this inside VS Code so that I don’t leave my workflow.
+
+As a Copilot user, I want to refine generated code using Copilot Chat.
+
+As a Linux user, I want full functionality without a Figma desktop app.
+
+4. Functional Requirements
+4.1 Figma Design Input
+
+Accept Figma file URL
+
+Accept optional node ID
+
+Validate access permissions
+
+Fetch design data using Figma API
+
+Acceptance Criteria
+
+User can paste a Figma URL
+
+System fetches design metadata successfully
+
+Errors are shown clearly if access fails
+
+4.2 MCP Orchestration Layer
+
+MCP server runs independently (local/cloud)
+
+Exposes tool-based APIs:
+
+get_figma_design
+
+generate_flutter_widget
+
+generate_widget_tests
+
+generate_qa_testcases
+
+Handles AI model invocation
+
+Produces structured output
+
+Acceptance Criteria
+
+Tools are callable via HTTP
+
+Inputs/outputs follow defined schemas
+
+Server is stateless for MVP
+
+4.3 Code & Test Generation
+Flutter Widget Generation
+
+Generate valid Flutter widget code
+
+Respect layout hierarchy
+
+Use Material widgets by default
+
+Widget Test Generation
+
+Generate Flutter widget tests
+
+Cover basic rendering and interactions
+
+Use best practices (pumpWidget, finders)
+
+QA Test Case Generation
+
+Generate readable test cases
+
+Output in text or JSON
+
+Cover UI states and validations
+
+Acceptance Criteria
+
+Generated code compiles
+
+Tests run successfully with minimal edits
+
+Output is deterministic and readable
+
+4.4 VS Code Extension
+
+Provide commands:
+
+“Generate Flutter Widget from Figma”
+
+“Generate Widget Tests from Figma”
+
+Prompt user for Figma URL / node ID
+
+Insert generated code into workspace
+
+Support Linux environments
+
+Acceptance Criteria
+
+Commands appear in VS Code Command Palette
+
+Output is inserted into correct file
+
+Errors are shown in VS Code UI
+
+4.5 GitHub Copilot Compatibility
+
+Generated output must be Copilot-friendly
+
+Copilot can explain/refactor generated code
+
+Commands can be triggered via Copilot suggestions
+
+Acceptance Criteria
+
+Copilot Chat can meaningfully interact with output
+
+No conflict with Copilot extension behavior
+
+5. Non-Functional Requirements
+
+Linux-first compatibility
+
+Secure token handling
+
+Response time ≤ 10 seconds (MVP)
+
+Clear error messages
+
+Extensible architecture
+
+No dependency on Figma desktop app
+
+6. Out of Scope (Explicit)
+
+Copilot for Figma integration
+
+Editing Figma files
+
+Real-time design sync
+
+Mobile IDE support
+
+Figma plugin development
+
+7. User Flow (MVP)
+
+User opens Flutter project in VS Code
+
+User runs command:
+“Generate Widget Tests from Figma”
+
+User enters Figma URL
+
+VS Code extension sends request to MCP
+
+MCP:
+
+Fetches design from Figma API
+
+Processes layout
+
+Calls AI model
+
+Generated code/tests appear in editor
+
+User refines using GitHub Copilot
+
+8. Technical Constraints
+
+Figma API is read-only
+
+Copilot cannot call external tools directly
+
+MCP must remain external
+
+VS Code extension must be thin (no AI logic)
+
+9. Success Metrics (KPIs)
+MVP Metrics
+
+Time saved per screen implementation
+
+Number of generated tests used
+
+Extension install count
+
+Command execution success rate
+
+Qualitative Metrics
+
+Developer satisfaction
+
+QA feedback
+
+Copilot interaction usefulness
+
+10. Risks & Mitigations
+Risk	Mitigation
+Inconsistent AI output	Structured prompts & schemas
+Figma API limitations	Node-level fetching
+User mistrust of AI code	Clear, editable output
+Copilot overlap confusion	Clear positioning
+11. Release Plan
+MVP (Phase 1)
+
+MCP server (local)
+
+Figma API integration
+
+One VS Code command
+
+Flutter widget or test generation
+
+Phase 2
+
+Web UI
+
+Saved projects
+
+Output history
+
+Better component reuse
+
+Phase 3
+
+CI integration
+
+Design drift detection
+
+SaaS offering
+
+Team collaboration
+
+12. Product Positioning
+
+“Not a Copilot replacement — a Copilot amplifier for design-driven development.”
+
+Key differentiators:
+
+Linux-first
+
+Design → Test automation
+
+MCP-powered
+
+Copilot-compatible
+
+13. Open Questions
+
+Should MVP focus on widgets or widget tests first?
+
+Should output be file-based or snippet-based?
+
+Local-only MCP vs cloud-hosted MCP?
+
+14. Next Steps
+
+Lock MVP scope
+
+Finalize MCP tool schemas
+
+Build MCP skeleton
+
+Create VS Code extension PoC
+
+Demo with real Figma file

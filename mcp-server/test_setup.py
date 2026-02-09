@@ -27,7 +27,7 @@ async def test_complete_setup():
     # Test 1: Check Environment Variables
     print("\n1. Checking environment variables...")
     figma_token = os.getenv("FIGMA_ACCESS_TOKEN")
-    ai_key = os.getenv("AI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    ai_key = os.getenv("AI_API_KEY")
     ai_base_url = os.getenv("AI_BASE_URL")
     ai_model = os.getenv("AI_MODEL", "gpt-4o")
     
@@ -38,7 +38,7 @@ async def test_complete_setup():
         print(f"   ✓ FIGMA_ACCESS_TOKEN: {figma_token[:10]}...")
     
     if not ai_key:
-        print("   ❌ AI_API_KEY or OPENAI_API_KEY not found in .env")
+        print("   ❌ AI_API_KEY not found in .env")
         success = False
     else:
         print(f"   ✓ AI_API_KEY: {ai_key[:10]}...")

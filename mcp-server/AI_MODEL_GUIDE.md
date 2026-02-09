@@ -18,7 +18,7 @@ AI_MODEL=gpt-5  # Just change this!
 ```bash
 # .env
 # Remove or comment out AI_BASE_URL
-OPENAI_API_KEY=your_openai_api_key
+AI_API_KEY=your_openai_api_key
 AI_MODEL=gpt-5  # Just change this!
 ```
 
@@ -67,7 +67,7 @@ You can also connect directly to any provider:
 **OpenAI Direct:**
 ```bash
 # .env
-OPENAI_API_KEY=sk-...
+AI_API_KEY=sk-...
 AI_MODEL=gpt-5
 # Don't set AI_BASE_URL
 ```

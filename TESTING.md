@@ -65,7 +65,7 @@ npm test
 
 ### Prerequisites
 - Valid Figma access token
-- Valid OpenAI API key
+- Valid AI API key
 - Test Figma file URL
 
 ### Steps
@@ -182,8 +182,8 @@ Test error scenarios:
 1. Enter URL: `https://example.com/notfigma`
 2. **Expected:** Validation error "Please enter a valid Figma URL"
 
-### Missing OpenAI Key
-1. Remove `OPENAI_API_KEY` from .env
+### Missing AI API Key
+1. Remove `AI_API_KEY` from .env
 2. Try generating widget
 3. **Expected:** Error about missing API key
 

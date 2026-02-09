@@ -53,7 +53,7 @@ AI_MODEL=gemini-pro
 **Direct OpenAI:**
 ```bash
 # Remove AI_BASE_URL or comment it out
-OPENAI_API_KEY=sk-your_openai_key
+AI_API_KEY=sk-your_openai_key
 AI_MODEL=gpt-4o
 ```
 

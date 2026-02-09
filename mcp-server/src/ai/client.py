@@ -15,17 +15,20 @@ class AIClient:
         Initialize AI client
         
         Args:
-            api_key: API key (defaults to env var OPENAI_API_KEY or AI_API_KEY)
+            api_key: API key (defaults to env var AI_API_KEY)
             model: Model to use (defaults to env var AI_MODEL or gpt-4o)
             base_url: Custom base URL for LiteLLM proxy (defaults to env var AI_BASE_URL)
         """
-        # Support multiple env var names for API key
-        self.api_key = api_key or os.getenv("AI_API_KEY") or os.getenv("OPENAI_API_KEY")
-        self.model = model or os.getenv("AI_MODEL", "gpt-4o")
-        self.base_url = base_url or os.getenv("AI_BASE_URL")
+        # Load from single source: AI_API_KEY
+        self.api_key = api_key if (api_key and api_key.strip()) else os.getenv("AI_API_KEY")
+        self.model = model if (model and model.strip()) else (os.getenv("AI_MODEL") or "gpt-4o")
+        self.base_url = base_url if (base_url and base_url.strip()) else os.getenv("AI_BASE_URL")
         
         if not self.api_key:
-            raise ValueError("API key not found. Set AI_API_KEY or OPENAI_API_KEY environment variable.")
+            raise ValueError(
+                "AI_API_KEY not found. Please set AI_API_KEY in mcp-server/.env file.\n"
+                "Example: AI_API_KEY=your-key-here"
+            )
         
         # Initialize client with optional custom base URL (for LiteLLM)
         client_kwargs = {"api_key": self.api_key}

@@ -69,6 +69,19 @@ export async function generateTestsCommand(context: vscode.ExtensionContext): Pr
 
             const widgetCode = widgetResult.content[0].text;
 
+            // Check if widget generation returned an error
+            try {
+                const possibleError = JSON.parse(widgetCode);
+                if (possibleError.error) {
+                    throw new Error(possibleError.error);
+                }
+            } catch (parseError) {
+                // Not JSON or doesn't have error property - this is expected for valid code
+                if (parseError instanceof Error && parseError.message.startsWith('Failed to generate')) {
+                    throw parseError;
+                }
+            }
+
             // Generate tests
             progress.report({ message: 'Generating tests...', increment: 30 });
             const testResult = await mcpClient.callTool('generate_widget_tests', {
@@ -77,6 +90,27 @@ export async function generateTestsCommand(context: vscode.ExtensionContext): Pr
             });
 
             const testCode = testResult.content[0].text;
+
+            // Check if test generation returned an error
+            let isJsonError = false;
+            try {
+                const possibleError = JSON.parse(testCode);
+                // If we can parse it as JSON, it's an error (valid code should be Dart, not JSON)
+                if (possibleError.error) {
+                    // JSON response with error property - this is definitely an error
+                    isJsonError = true;
+                    throw new Error(possibleError.error);
+                }
+                // Successfully parsed JSON without error property - still invalid
+                isJsonError = true;
+                throw new Error('Received unexpected JSON response instead of Flutter test code');
+            } catch (parseError) {
+                // If we marked it as JSON error, or if parsing succeeded, re-throw
+                if (isJsonError || !(parseError instanceof SyntaxError)) {
+                    throw parseError;
+                }
+                // Otherwise, JSON parse failed with SyntaxError - good! It's Dart code
+            }
             progress.report({ increment: 10 });
 
             // Insert test code

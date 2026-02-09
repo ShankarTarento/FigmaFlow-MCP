@@ -10,7 +10,6 @@ import * as dotenv from 'dotenv';
 export interface Environment {
     FIGMA_ACCESS_TOKEN?: string;
     AI_API_KEY?: string;
-    OPENAI_API_KEY?: string;
     AI_BASE_URL?: string;
     AI_MODEL?: string;
     AI_TEMPERATURE?: string;
@@ -76,23 +75,11 @@ function loadEnvironmentFile(envPath: string): Environment | null {
         return null;
     }
 
-    // Get both naming conventions (AI_API_KEY or OPENAI_API_KEY)
-    const figmaToken = process.env.FIGMA_ACCESS_TOKEN;
-    const aiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY;
-
-    // Warn if missing but don't fail completely
-    if (!figmaToken) {
-        vscode.window.showWarningMessage('⚠️ FIGMA_ACCESS_TOKEN not found in mcp-server/.env');
-    }
-
-    if (!aiKey) {
-        vscode.window.showWarningMessage('⚠️ AI_API_KEY or OPENAI_API_KEY not found in mcp-server/.env');
-    }
-
+    // Note: These values are loaded for information purposes only
+    // The MCP server loads its own .env file and doesn't use these
     return {
-        FIGMA_ACCESS_TOKEN: figmaToken,
+        FIGMA_ACCESS_TOKEN: process.env.FIGMA_ACCESS_TOKEN,
         AI_API_KEY: process.env.AI_API_KEY,
-        OPENAI_API_KEY: process.env.OPENAI_API_KEY,
         AI_BASE_URL: process.env.AI_BASE_URL,
         AI_MODEL: process.env.AI_MODEL,
         AI_TEMPERATURE: process.env.AI_TEMPERATURE,

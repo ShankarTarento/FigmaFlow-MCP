@@ -100,8 +100,7 @@ Returns generated code
 - Add to `mcp-server/.env`
 
 ### "AI_API_KEY not found"
-- Set `AI_API_KEY` for LiteLLM
-- Or set `OPENAI_API_KEY` for direct OpenAI
+- Set `AI_API_KEY` in mcp-server/.env
 
 ## Migration from Old Version
 

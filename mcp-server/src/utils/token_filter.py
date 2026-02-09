@@ -204,12 +204,22 @@ class TokenFilter:
             # Add color for solid fills
             if fill.get('type') == 'SOLID' and 'color' in fill:
                 color = fill['color']
-                simplified['color'] = {
-                    'r': self._round_number(color.get('r', 0)),
-                    'g': self._round_number(color.get('g', 0)),
-                    'b': self._round_number(color.get('b', 0)),
-                    'a': self._round_number(color.get('a', 1.0))
-                }
+                # Color might be a string (from parser) or dict (raw Figma)
+                if isinstance(color, str):
+                    # Already processed by parser, keep as-is
+                    simplified['color'] = color
+                elif isinstance(color, dict):
+                    # Raw Figma color dict, process it
+                    simplified['color'] = {
+                        'r': self._round_number(color.get('r', 0)),
+                        'g': self._round_number(color.get('g', 0)),
+                        'b': self._round_number(color.get('b', 0)),
+                        'a': self._round_number(color.get('a', 1.0))
+                    }
+                else:
+                    # Unknown format, keep as-is
+                    simplified['color'] = color
+
             
             filtered.append(simplified)
         
@@ -239,12 +249,19 @@ class TokenFilter:
             
             if stroke.get('type') == 'SOLID' and 'color' in stroke:
                 color = stroke['color']
-                simplified['color'] = {
-                    'r': self._round_number(color.get('r', 0)),
-                    'g': self._round_number(color.get('g', 0)),
-                    'b': self._round_number(color.get('b', 0)),
-                    'a': self._round_number(color.get('a', 1.0))
-                }
+                # Color might be a string (from parser) or dict (raw Figma)
+                if isinstance(color, str):
+                    simplified['color'] = color
+                elif isinstance(color, dict):
+                    simplified['color'] = {
+                        'r': self._round_number(color.get('r', 0)),
+                        'g': self._round_number(color.get('g', 0)),
+                        'b': self._round_number(color.get('b', 0)),
+                        'a': self._round_number(color.get('a', 1.0))
+                    }
+                else:
+                    simplified['color'] = color
+
             
             filtered.append(simplified)
         

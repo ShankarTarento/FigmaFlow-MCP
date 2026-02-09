@@ -12,7 +12,7 @@ Complete guide to set up and run FigmaFlow-MCP locally.
 
 You'll also need:
 - Figma account with API access
-- OpenAI account with API access
+- AI API key (OpenAI, LiteLLM, etc.)
 - Flutter SDK (optional, for testing generated code)
 
 ## Step 1: Get API Keys
@@ -25,12 +25,12 @@ You'll also need:
 4. Give it a name (e.g., "FigmaFlow MCP")
 5. Copy the token (starts with `figd_`)
 
-### OpenAI API Key
+### AI API Key
 
-1. Go to [OpenAI API Keys](https://platform.openai.com/api-keys)
+1. Go to [OpenAI API Keys](https://platform.openai.com/api-keys) or your AI provider
 2. Click **Create new secret key**
 3. Give it a name (e.g., "FigmaFlow")
-4. Copy the key (starts with `sk-`)
+4. Copy the key
 
 ## Step 2: Configure MCP Server
 
@@ -47,7 +47,7 @@ nano .env  # or use your preferred editor
 Your `.env` file should look like:
 ```bash
 FIGMA_ACCESS_TOKEN=figd_your_actual_token_here
-OPENAI_API_KEY=sk-your_actual_key_here
+AI_API_KEY=sk-your_actual_key_here
 MCP_SERVER_PORT=3000
 LOG_LEVEL=INFO
 AI_MODEL=gpt-4o
@@ -91,7 +91,7 @@ In the Extension Development Host window:
    - Press `Cmd+Shift+P` (or `Ctrl+Shift+P`)
    - Type: `FigmaFlow: Setup API Keys`
    - Enter your Figma token
-   - Enter your OpenAI key
+   - Enter your AI API key
 
 3. **Generate a widget:**
    - Press `Cmd+Shift+P`

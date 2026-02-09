@@ -13,6 +13,15 @@ export async function generateWidgetCommand(context: vscode.ExtensionContext): P
         const env = await loadEnvironment(context);
         if (!env) return;
 
+        // Debug: Log what we loaded (without exposing full keys)
+        console.log('[FigmaFlow] Environment loaded:', {
+            hasApiKey: !!env.AI_API_KEY,
+            hasBaseUrl: !!env.AI_BASE_URL,
+            hasModel: !!env.AI_MODEL,
+            baseUrl: env.AI_BASE_URL,
+            model: env.AI_MODEL
+        });
+
         // Step 2: Get Figma URL from user
         const figmaUrl = await vscode.window.showInputBox({
             prompt: 'Enter Figma file URL',
@@ -56,18 +65,30 @@ export async function generateWidgetCommand(context: vscode.ExtensionContext): P
                 progress.report({ message: 'Connecting to MCP server...', increment: 10 });
                 await mcpClient.connect(serverPath);
 
-                // Fetch design data from Figma
+                // Fetch design from Figma
                 progress.report({ message: 'Fetching Figma design...', increment: 30 });
+
+                console.log('[FigmaFlow] STEP 1: Fetching Figma design');
+                console.log('[FigmaFlow] URL:', figmaUrl);
+                console.log('[FigmaFlow] Token present:', !!env.FIGMA_ACCESS_TOKEN);
+
                 const designResult = await mcpClient.callTool('get_figma_design', {
                     fileUrl: figmaUrl,
                     accessToken: env.FIGMA_ACCESS_TOKEN
                 });
 
+                console.log('[FigmaFlow] STEP 2: Figma design fetched');
+                console.log('[FigmaFlow] Design result type:', typeof designResult);
+                console.log('[FigmaFlow] Design result:', JSON.stringify(designResult).substring(0, 200));
+
                 // Parse response with error handling
                 let designData;
                 const responseText = designResult.content[0]?.text || '';
+                console.log('[FigmaFlow] Response text length:', responseText.length);
+
                 try {
                     designData = JSON.parse(responseText);
+                    console.log('[FigmaFlow] Parsed design data successfully');
                 } catch (parseError) {
                     // Show the actual response that failed to parse
                     throw new Error(`Failed to parse Figma response: ${responseText.substring(0, 200)}`);
@@ -80,18 +101,70 @@ export async function generateWidgetCommand(context: vscode.ExtensionContext): P
 
                 // Generate widget code
                 progress.report({ message: 'Generating widget code...', increment: 40 });
-                const widgetResult = await mcpClient.callTool('generate_flutter_widget', {
+
+                console.log('[FigmaFlow] STEP 3: Calling generate_flutter_widget tool');
+                console.log('[FigmaFlow] Widget name:', widgetName);
+                console.log('[FigmaFlow] Design data type:', typeof designData);
+                console.log('[FigmaFlow] Design data keys:', Object.keys(designData).slice(0, 5));
+
+                // Don't pass AI config - let MCP server use its own .env file
+                // The server runs as a separate process and loads /mcp-server/.env
+                console.log('[FigmaFlow] STEP 4: Preparing tool call arguments');
+                const toolArgs = {
                     designData: designData,
                     widgetName: widgetName,
-                    // Use AI_API_KEY if available (for LiteLLM), fallback to OPENAI_API_KEY
-                    openaiApiKey: env.AI_API_KEY || env.OPENAI_API_KEY,
                     options: {
                         includeImports: true,
                         stateful: false
                     }
-                });
+                };
+                console.log('[FigmaFlow] Tool args prepared, type:', typeof toolArgs);
+                console.log('[FigmaFlow] Tool args keys:', Object.keys(toolArgs));
 
+                console.log('[FigmaFlow] STEP 5: Calling MCP client...');
+                const widgetResult = await mcpClient.callTool('generate_flutter_widget', toolArgs);
+
+                console.log('[FigmaFlow] STEP 6: Tool call returned');
+                console.log('[FigmaFlow] Result type:', typeof widgetResult);
+                console.log('[FigmaFlow] Result keys:', widgetResult ? Object.keys(widgetResult) : 'null');
+                console.log('[FigmaFlow] Result:', JSON.stringify(widgetResult).substring(0, 200));
+
+                // Validate response structure
+                if (typeof widgetResult === 'string') {
+                    const strResult = widgetResult as string;
+                    throw new Error(`MCP server returned invalid response format (string): ${strResult.substring(0, 200)}`);
+                }
+
+                console.log('[FigmaFlow] STEP 7: Checking result.content');
+                if (!widgetResult.content || !Array.isArray(widgetResult.content) || widgetResult.content.length === 0) {
+                    throw new Error(`MCP server returned invalid response structure: ${JSON.stringify(widgetResult).substring(0, 200)}`);
+                }
+
+                console.log('[FigmaFlow] STEP 8: Extracting widget code');
+                console.log('[FigmaFlow] content[0] type:', typeof widgetResult.content[0]);
                 const widgetCode = widgetResult.content[0].text;
+
+                // Check if the response is an error JSON
+                let isJsonError = false;
+                try {
+                    const possibleError = JSON.parse(widgetCode);
+                    // If we can parse it as JSON, it's an error (valid code should be Dart, not JSON)
+                    if (possibleError.error) {
+                        // JSON response with error property - this is definitely an error
+                        isJsonError = true;
+                        throw new Error(possibleError.error);
+                    }
+                    // Successfully parsed JSON without error property - still invalid
+                    isJsonError = true;
+                    throw new Error('Received unexpected JSON response instead of Flutter code');
+                } catch (parseError) {
+                    // If we marked it as JSON error, or if parsing succeeded, re-throw
+                    if (isJsonError || !(parseError instanceof SyntaxError)) {
+                        throw parseError;
+                    }
+                    // Otherwise, JSON parse failed with SyntaxError - good! It's Dart code
+                }
+
                 progress.report({ message: 'Widget generated!', increment: 20 });
 
                 // Insert code into editor

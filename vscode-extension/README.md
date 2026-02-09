@@ -69,7 +69,7 @@ Your API keys are stored in `.env` in your workspace root:
 ```bash
 # .env (automatically created by setup wizard)
 FIGMA_ACCESS_TOKEN=figd_your_token_here
-OPENAI_API_KEY=sk_your_key_here
+AI_API_KEY=sk_your_key_here
 ```
 
 ## Development

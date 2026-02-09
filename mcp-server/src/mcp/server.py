@@ -4,14 +4,25 @@ Handles tool registration and request routing
 """
 import asyncio
 import os
+from pathlib import Path
 from typing import Any, Dict
 from dotenv import load_dotenv
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from mcp-server/.env
+# Find .env file relative to this script's location
+env_path = Path(__file__).parent.parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
+# Log environment loading for debugging
+import sys
+print(f"[MCP Server] Loaded .env from: {env_path}", file=sys.stderr)
+print(f"[MCP Server] AI_API_KEY: {'✓' if os.getenv('AI_API_KEY') else '✗'}", file=sys.stderr)
+print(f"[MCP Server] AI_BASE_URL: {os.getenv('AI_BASE_URL') or '(default)'}", file=sys.stderr)
+print(f"[MCP Server] AI_MODEL: {os.getenv('AI_MODEL') or '(default)'}", file=sys.stderr)
+sys.stderr.flush()
 
 # Validate configuration on startup
 from ..utils.config_validator import ConfigValidator
@@ -69,10 +80,6 @@ class FigmaFlowMCPServer:
                             "type": "string",
                             "description": "Name for the generated widget"
                         },
-                        "openaiApiKey": {
-                            "type": "string",
-                            "description": "OpenAI API key for code generation"
-                        },
                         "options": {
                             "type": "object",
                             "properties": {
@@ -81,7 +88,7 @@ class FigmaFlowMCPServer:
                             }
                         }
                     },
-                    "required": ["designData", "widgetName", "openaiApiKey"]
+                    "required": ["designData", "widgetName"]
                 }
             ),
             Tool(
@@ -108,6 +115,28 @@ class FigmaFlowMCPServer:
         """Route tool calls to appropriate handlers"""
         # Import handlers here to avoid circular imports
         from .tools import ToolHandlers
+        import sys
+        import json
+        
+        # Debug logging - see what we're actually receiving
+        print(f"[DEBUG] Tool called: {name}", file=sys.stderr)
+        print(f"[DEBUG] Arguments type: {type(arguments)}", file=sys.stderr)
+        print(f"[DEBUG] Arguments value: {arguments}", file=sys.stderr)
+        
+        # Handle case where MCP SDK sends arguments as JSON string
+        if isinstance(arguments, str):
+            try:
+                print(f"[DEBUG] Parsing arguments from JSON string", file=sys.stderr)
+                arguments = json.loads(arguments)
+                print(f"[DEBUG] Parsed arguments: {arguments}", file=sys.stderr)
+            except json.JSONDecodeError as e:
+                print(f"[ERROR] Failed to parse arguments JSON: {e}", file=sys.stderr)
+                return [TextContent(
+                    type="text",
+                    text=json.dumps({
+                        "error": f"Invalid arguments format. Expected JSON object, got: {str(arguments)[:200]}"
+                    })
+                )]
         
         handlers = ToolHandlers()
         

@@ -30,10 +30,10 @@ class ConfigValidator:
         elif not figma_token.startswith("figd_"):
             warnings.append("FIGMA_ACCESS_TOKEN may be invalid (should start with 'figd_')")
         
-        # Required: AI API key (either format)
-        ai_key = os.getenv("AI_API_KEY") or os.getenv("OPENAI_API_KEY")
+        # Required: AI API key
+        ai_key = os.getenv("AI_API_KEY")
         if not ai_key:
-            errors.append("AI_API_KEY or OPENAI_API_KEY is required")
+            errors.append("AI_API_KEY is required")
         
         # Optional but recommended
         if not os.getenv("AI_BASE_URL"):

@@ -148,7 +148,7 @@ The project uses `.env` files for configuration:
 ```bash
 # .env
 FIGMA_ACCESS_TOKEN=figd_xxxxx
-OPENAI_API_KEY=sk-xxxxx
+AI_API_KEY=sk-xxxxx
 MCP_SERVER_PORT=3000
 LOG_LEVEL=INFO
 ```

@@ -25,6 +25,11 @@ class ToolHandlers:
         Returns:
             List of TextContent with design data or error
         """
+        from ..utils.logger import setup_logger
+        from ..utils.errors import handle_error, InvalidDesignError
+        
+        logger = setup_logger(__name__)
+        
         try:
             from ..figma.client import FigmaClient
             from ..figma.parser import DesignParser
@@ -35,14 +40,14 @@ class ToolHandlers:
             file_key, node_id = FigmaClient.parse_file_url(args["fileUrl"])
             
             if not file_key:
-                return [TextContent(
-                    type="text",
-                    text=json.dumps({"error": "Invalid Figma URL"})
-                )]
+                error_msg = handle_error(InvalidDesignError("unknown", "Invalid Figma URL format"))
+                return [TextContent(type="text", text=json.dumps({"error": error_msg}))]
             
             # Use provided nodeId if available
             if "nodeId" in args and args["nodeId"]:
                 node_id = args["nodeId"]
+            
+            logger.info(f"Fetching Figma design: {file_key}:{node_id or 'root'}")
             
             # Fetch design data
             if node_id:
@@ -56,10 +61,8 @@ class ToolHandlers:
                 # Parse first canvas from document
                 document = file_data.get("document", {})
                 if document.get("children"):
-                    # Get first canvas/page
                     first_canvas = document["children"][0]
                     if first_canvas.get("children"):
-                        # Get first frame on canvas
                         first_frame = first_canvas["children"][0]
                         node = FigmaNode(**first_frame)
                         design_data = parser.parse_layout(node)
@@ -68,16 +71,13 @@ class ToolHandlers:
                 else:
                     design_data = {"error": "Empty document"}
             
-            return [TextContent(
-                type="text",
-                text=json.dumps(design_data, indent=2)
-            )]
+            logger.info("✓ Successfully fetched Figma design")
+            return [TextContent(type="text", text=json.dumps(design_data, indent=2))]
             
         except Exception as e:
-            return [TextContent(
-                type="text",
-                text=json.dumps({"error": str(e)})
-            )]
+            logger.error(f"Error fetching Figma design: {e}", exc_info=True)
+            error_message = handle_error(e)
+            return [TextContent(type="text", text=json.dumps({"error": error_message}))]
     
     async def handle_generate_flutter_widget(self, args: Dict[str, Any]) -> list[TextContent]:
         """
@@ -89,9 +89,16 @@ class ToolHandlers:
         Returns:
             List of TextContent with generated widget code
         """
+        from ..utils.logger import setup_logger
+        from ..utils.errors import handle_error, AIGenerationError
+        
+        logger = setup_logger(__name__)
+        
         try:
             from ..generators.widget import WidgetGenerator
             from ..ai.client import AIClient
+            
+            logger.info(f"Generating widget: {args.get('widgetName', 'Unknown')}")
             
             # Use API key from args (passed by extension)
             ai_client = AIClient(api_key=args.get("openaiApiKey"))
@@ -103,16 +110,13 @@ class ToolHandlers:
                 options=args.get("options", {})
             )
             
-            return [TextContent(
-                type="text",
-                text=widget_code
-            )]
+            logger.info("✓ Successfully generated widget code")
+            return [TextContent(type="text", text=widget_code)]
             
         except Exception as e:
-            return [TextContent(
-                type="text",
-                text=json.dumps({"error": str(e)})
-            )]
+            logger.error(f"Error generating widget: {e}", exc_info=True)
+            error_message = handle_error(AIGenerationError(str(e)))
+            return [TextContent(type="text", text=json.dumps({"error": error_message}))]
     
     async def handle_generate_widget_tests(self, args: Dict[str, Any]) -> list[TextContent]:
         """

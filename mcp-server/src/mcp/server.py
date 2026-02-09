@@ -13,6 +13,10 @@ from mcp.types import Tool, TextContent
 # Load environment variables
 load_dotenv()
 
+# Validate configuration on startup
+from ..utils.config_validator import ConfigValidator
+ConfigValidator.validate_and_report()
+
 
 class FigmaFlowMCPServer:
     """Main MCP Server class"""

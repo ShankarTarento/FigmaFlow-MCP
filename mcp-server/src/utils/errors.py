@@ -23,13 +23,36 @@ class FigmaFlowError(Exception):
 class RateLimitError(FigmaFlowError):
     """Figma API rate limit exceeded"""
     
-    def __init__(self, retry_after: int = None, attempt: int = 1, max_attempts: int = 5):
+    def __init__(self, retry_after: int = 60, attempt: int = 1, max_attempts: int = 1):
+        # Cap unreasonable wait times (Figma shouldn't rate limit for more than 5 minutes)
+        if retry_after > 300:  # More than 5 minutes
+            retry_after = 60  # Default to 1 minute
+        
+        # Format time in human-readable way
+        if retry_after < 60:
+            time_str = f"{retry_after} seconds"
+        elif retry_after < 3600:
+            minutes = retry_after // 60
+            seconds = retry_after % 60
+            if seconds > 0:
+                time_str = f"{minutes} minute{'s' if minutes != 1 else ''} and {seconds} seconds"
+            else:
+                time_str = f"{minutes} minute{'s' if minutes != 1 else ''}"
+        else:
+            hours = retry_after // 3600
+            remaining = retry_after % 3600
+            minutes = remaining // 60
+            time_str = f"{hours} hour{'s' if hours != 1 else ''}"
+            if minutes > 0:
+                time_str += f" and {minutes} minute{'s' if minutes != 1 else ''}"
+        
         user_message = (
-            f"⏳ Figma API is temporarily busy (attempt {attempt}/{max_attempts}).\n"
-            f"   Retrying automatically in {retry_after or 30} seconds...\n"
-            f"   💡 Your design will be cached after successful fetch."
+            f"⚠️ Figma API rate limit exceeded.\n"
+            f"   Please wait {time_str} and try again.\n\n"
+            f"   💡 Tip: Previously fetched designs are cached for 24 hours.\n"
+            f"   If you've used this design before, try clearing and refetching."
         )
-        super().__init__(user_message, f"Rate limit hit on attempt {attempt}")
+        super().__init__(user_message, f"Rate limit hit, retry after {retry_after}s")
 
 
 class InvalidDesignError(FigmaFlowError):

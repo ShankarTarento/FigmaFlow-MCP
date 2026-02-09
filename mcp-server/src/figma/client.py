@@ -84,55 +84,52 @@ class FigmaClient:
         self.use_cache = use_cache
         self.cache = FigmaCache() if use_cache else None
     
-    async def _request_with_retry(
+    async def _make_request(
         self,
         method: str,
         url: str,
-        max_retries: int = 5,
         **kwargs
     ) -> httpx.Response:
         """
-        Make HTTP request with retry logic for rate limiting
+        Make HTTP request to Figma API (no retry - fail fast)
         
         Args:
             method: HTTP method
             url: Request URL
-            max_retries: Maximum number of retry attempts (increased to 5 for heavy rate limiting)
             **kwargs: Additional request arguments
             
         Returns:
             HTTP response
             
         Raises:
-            httpx.HTTPStatusError: If request fails after all retries
+            RateLimitError: If rate limited
+            InvalidDesignError: If design not found or forbidden
+            httpx.HTTPStatusError: For other HTTP errors
         """
-        for attempt in range(max_retries):
-            try:
-                response = await self.client.request(method, url, **kwargs)
-                response.raise_for_status()
-                return response
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:
-                    if attempt < max_retries - 1:
-                        # Aggressive exponential backoff for account-level rate limiting
-                        # 30s, 60s, 120s, 240s
-                        wait_time = 30 * (2 ** attempt)
-                        
-                        # Check for Retry-After header
-                        retry_after = e.response.headers.get("Retry-After")
-                        if retry_after:
-                            try:
-                                wait_time = max(int(retry_after), wait_time)
-                            except ValueError:
-                                pass
-                        
-                        logger.warning(f"Rate limited by Figma API. Retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
-                        print(f"⏳ Retrying in {wait_time}s... ({attempt + 1}/{max_retries})")
-                        await asyncio.sleep(wait_time)
-                        continue
-                    else:
-                        logger.error(f"Failed after {max_retries} retries - rate limit exceeded")
-                        raise RateLimitError(wait_time, attempt + 1, max_retries)
+        try:
+            response = await self.client.request(method, url, **kwargs)
+            response.raise_for_status()
+            return response
+        except httpx.HTTPStatusError as e:
+            # Rate limiting
+            if e.response.status_code == 429:
+                logger.error("Figma API rate limit hit")
+                retry_after = e.response.headers.get("Retry-After", "60")
+                raise RateLimitError(retry_after=int(retry_after), attempt=1, max_attempts=1)
+            
+            # Not found
+            elif e.response.status_code == 404:
+                logger.error(f"Figma design not found: {url}")
+                raise InvalidDesignError("unknown", "Design not found or not accessible")
+            
+            # Forbidden
+            elif e.response.status_code == 403:
+                logger.error(f"Figma access forbidden: {url}")
+                raise InvalidDesignError("unknown", "Access forbidden - check your token permissions")
+            
+            # Other errors
+            else:
+                logger.error(f"Figma API error {e.response.status_code}: {url}")
                 raise
         
         # Should never reach here, but just in case
@@ -157,7 +154,7 @@ class FigmaClient:
         
         # Not cached, fetch from API
         url = f"{self.BASE_URL}/files/{file_key}"
-        response = await self._request_with_retry("GET", url)
+        response = await self._make_request("GET", url)
         data = response.json()
         
         # Cache the result
@@ -197,29 +194,21 @@ class FigmaClient:
         url = f"{self.BASE_URL}/files/{file_key}/nodes"
         params = {"ids": node_id}
         
-        try:
-            response = await self._request_with_retry("GET", url, params=params)
-            data = response.json()
-            
-            # Cache the response
-            if self.use_cache and self.cache:
-                self.cache.set(file_key, data, node_id)
-            logger.info(f"✓ Fetched and cached node {node_id}")
-            
-            # Parse and return node
-            nodes = data.get("nodes", {})
-            if node_id not in nodes:
-                raise InvalidDesignError(file_key, f"Node {node_id} not found")
-            
-            node_data = nodes[node_id]["document"]
-            return FigmaNode(**node_data)
-            
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise InvalidDesignError(file_key, "Design not found or not accessible")
-            elif e.response.status_code == 403:
-                raise InvalidDesignError(file_key, "Access forbidden - check your token permissions")
-            raise
+        response = await self._make_request("GET", url, params=params)
+        data = response.json()
+        
+        # Cache the response
+        if self.use_cache and self.cache:
+            self.cache.set(file_key, data, node_id)
+        logger.info(f"✓ Fetched and cached node {node_id}")
+        
+        # Parse and return node
+        nodes = data.get("nodes", {})
+        if node_id not in nodes:
+            raise InvalidDesignError(file_key, f"Node {node_id} not found")
+        
+        node_data = nodes[node_id]["document"]
+        return FigmaNode(**node_data)
     
     @staticmethod
     def parse_file_url(url: str) -> Tuple[Optional[str], Optional[str]]:

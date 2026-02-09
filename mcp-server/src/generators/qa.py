@@ -9,19 +9,22 @@ from ..ai.prompts import (
     QA_TEST_GENERATION_SYSTEM_PROMPT,
     QA_TEST_GENERATION_USER_PROMPT_TEMPLATE
 )
+from ..utils.token_filter import TokenFilter, FilterLevel
 
 
 class QATestGenerator:
     """Generates QA test cases for manual testing"""
     
-    def __init__(self, ai_client: AIClient) -> None:
+    def __init__(self, ai_client: AIClient, filter_level: FilterLevel = FilterLevel.BALANCED) -> None:
         """
         Initialize QA test generator
         
         Args:
             ai_client: AI client for test case generation
+            filter_level: Token filtering strategy
         """
         self.ai_client = ai_client
+        self.token_filter = TokenFilter(filter_level)
     
     async def generate_test_cases(
         self,
@@ -38,8 +41,11 @@ class QATestGenerator:
         Returns:
             QA test cases as formatted text
         """
-        # Create design description from data
-        design_description = self._create_design_description(design_data)
+        # Apply token filtering to design data
+        filtered_data = self.token_filter.filter_design_data(design_data, max_depth=3)
+        
+        # Create design description from filtered data
+        design_description = self._create_design_description(filtered_data)
         
         # Build user prompt
         user_prompt = QA_TEST_GENERATION_USER_PROMPT_TEMPLATE.format(

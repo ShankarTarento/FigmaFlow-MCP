@@ -51,9 +51,22 @@ class ToolHandlers:
                 design_data = parser.parse_layout(node)
             else:
                 file_data = await figma_client.get_file(file_key)
+                from ..figma.client import FigmaNode
                 parser = DesignParser()
-                # Parse first frame from document
-                design_data = parser.parse_layout(file_data["document"])
+                # Parse first canvas from document
+                document = file_data.get("document", {})
+                if document.get("children"):
+                    # Get first canvas/page
+                    first_canvas = document["children"][0]
+                    if first_canvas.get("children"):
+                        # Get first frame on canvas
+                        first_frame = first_canvas["children"][0]
+                        node = FigmaNode(**first_frame)
+                        design_data = parser.parse_layout(node)
+                    else:
+                        design_data = {"error": "No frames found in design"}
+                else:
+                    design_data = {"error": "Empty document"}
             
             return [TextContent(
                 type="text",
@@ -80,7 +93,8 @@ class ToolHandlers:
             from ..generators.widget import WidgetGenerator
             from ..ai.client import AIClient
             
-            ai_client = AIClient()
+            # Use API key from args (passed by extension)
+            ai_client = AIClient(api_key=args.get("openaiApiKey"))
             generator = WidgetGenerator(ai_client)
             
             widget_code = await generator.generate(

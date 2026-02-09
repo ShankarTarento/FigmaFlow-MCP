@@ -10,21 +10,30 @@ from openai import AsyncOpenAI
 class AIClient:
     """Client for AI model interactions"""
     
-    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None) -> None:
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None, base_url: Optional[str] = None) -> None:
         """
         Initialize AI client
         
         Args:
-            api_key: OpenAI API key (defaults to env var)
-            model: Model to use (defaults to env var or gpt-4o)
+            api_key: API key (defaults to env var OPENAI_API_KEY or AI_API_KEY)
+            model: Model to use (defaults to env var AI_MODEL or gpt-4o)
+            base_url: Custom base URL for LiteLLM proxy (defaults to env var AI_BASE_URL)
         """
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        # Support multiple env var names for API key
+        self.api_key = api_key or os.getenv("AI_API_KEY") or os.getenv("OPENAI_API_KEY")
         self.model = model or os.getenv("AI_MODEL", "gpt-4o")
+        self.base_url = base_url or os.getenv("AI_BASE_URL")
         
         if not self.api_key:
-            raise ValueError("OpenAI API key not found. Set OPENAI_API_KEY environment variable.")
+            raise ValueError("API key not found. Set AI_API_KEY or OPENAI_API_KEY environment variable.")
         
-        self.client = AsyncOpenAI(api_key=self.api_key)
+        # Initialize client with optional custom base URL (for LiteLLM)
+        client_kwargs = {"api_key": self.api_key}
+        if self.base_url:
+            client_kwargs["base_url"] = self.base_url
+            print(f"✓ Using custom AI endpoint: {self.base_url}")
+        
+        self.client = AsyncOpenAI(**client_kwargs)
         self.temperature = float(os.getenv("AI_TEMPERATURE", "0.3"))
         self.max_tokens = int(os.getenv("AI_MAX_TOKENS", "2000"))
     

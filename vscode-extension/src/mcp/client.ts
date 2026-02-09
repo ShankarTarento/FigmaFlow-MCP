@@ -16,10 +16,16 @@ export class MCPClient {
     private transport: StdioClientTransport | null = null;
 
     async connect(serverPath: string): Promise<void> {
+        // Extract directory from server path for poetry to find pyproject.toml
+        const path = require('path');
+        const serverDir = path.dirname(path.dirname(path.dirname(serverPath))); // Go up to mcp-server root
+
         // Create transport for MCP server
+        // Use shell wrapper for more reliable execution
+        const runScript = path.join(serverDir, 'run_server.sh');
         this.transport = new StdioClientTransport({
-            command: 'python',
-            args: [serverPath],
+            command: runScript,
+            args: []
         });
 
         // Create client

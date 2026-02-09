@@ -65,6 +65,10 @@ class FigmaFlowMCPServer:
                             "type": "string",
                             "description": "Name for the generated widget"
                         },
+                        "openaiApiKey": {
+                            "type": "string",
+                            "description": "OpenAI API key for code generation"
+                        },
                         "options": {
                             "type": "object",
                             "properties": {
@@ -73,7 +77,7 @@ class FigmaFlowMCPServer:
                             }
                         }
                     },
-                    "required": ["designData", "widgetName"]
+                    "required": ["designData", "widgetName", "openaiApiKey"]
                 }
             ),
             Tool(

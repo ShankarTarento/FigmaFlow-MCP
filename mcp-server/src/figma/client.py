@@ -4,9 +4,11 @@ Handles communication with Figma API and data fetching
 """
 import re
 import os
+import asyncio
 from typing import Optional, Dict, Any, Tuple
 import httpx
 from pydantic import BaseModel, Field
+from .cache import FigmaCache
 
 
 class BoundingBox(BaseModel):
@@ -53,12 +55,13 @@ class FigmaClient:
     
     BASE_URL = "https://api.figma.com/v1"
     
-    def __init__(self, access_token: Optional[str] = None) -> None:
+    def __init__(self, access_token: Optional[str] = None, use_cache: bool = True) -> None:
         """
         Initialize Figma client
         
         Args:
             access_token: Figma API access token (defaults to env var)
+            use_cache: Whether to use caching to reduce API calls
         """
         self.access_token = access_token or os.getenv("FIGMA_ACCESS_TOKEN")
         
@@ -71,10 +74,57 @@ class FigmaClient:
             },
             timeout=30.0
         )
+        
+        # Initialize cache
+        self.use_cache = use_cache
+        self.cache = FigmaCache() if use_cache else None
+    
+    async def _request_with_retry(
+        self,
+        method: str,
+        url: str,
+        max_retries: int = 3,
+        **kwargs
+    ) -> httpx.Response:
+        """
+        Make HTTP request with retry logic for rate limiting
+        
+        Args:
+            method: HTTP method (GET, POST, etc.)
+            url: URL to request
+            max_retries: Maximum number of retry attempts
+            **kwargs: Additional arguments to pass to httpx
+            
+        Returns:
+            HTTP response
+            
+        Raises:
+            httpx.HTTPStatusError: If all retries fail
+        """
+        for attempt in range(max_retries):
+            try:
+                response = await self.client.request(method, url, **kwargs)
+                response.raise_for_status()
+                return response
+            except httpx.HTTPStatusError as e:
+                # Handle rate limiting (429)
+                if e.response.status_code == 429:
+                    if attempt < max_retries - 1:
+                        # Exponential backoff: 2^attempt seconds
+                        wait_time = 2 ** attempt
+                        print(f"⚠️  Rate limited by Figma API. Retrying in {wait_time}s... (attempt {attempt + 1}/{max_retries})")
+                        await asyncio.sleep(wait_time)
+                        continue
+                # Re-raise if not rate limiting or final attempt
+                raise
+        
+        # Should never reach here, but just in case
+        raise httpx.HTTPStatusError("Max retries exceeded", request=None, response=None)
     
     async def get_file(self, file_key: str) -> Dict[str, Any]:
         """
-        Fetch entire Figma file
+        Fetch entire Figma file with automatic retry on rate limiting
+        Caches results to reduce API calls
         
         Args:
             file_key: Figma file key
@@ -82,14 +132,27 @@ class FigmaClient:
         Returns:
             File data as dictionary
         """
+        # Check cache first
+        if self.use_cache and self.cache:
+            cached_data = self.cache.get(file_key)
+            if cached_data is not None:
+                return cached_data
+        
+        # Not cached, fetch from API
         url = f"{self.BASE_URL}/files/{file_key}"
-        response = await self.client.get(url)
-        response.raise_for_status()
-        return response.json()
+        response = await self._request_with_retry("GET", url)
+        data = response.json()
+        
+        # Cache the result
+        if self.use_cache and self.cache:
+            self.cache.set(file_key, data)
+        
+        return data
     
     async def get_node(self, file_key: str, node_id: str) -> FigmaNode:
         """
-        Fetch specific node from Figma file
+        Fetch specific node from Figma file with automatic retry on rate limiting
+        Caches results to reduce API calls
         
         Args:
             file_key: Figma file key
@@ -98,11 +161,21 @@ class FigmaClient:
         Returns:
             FigmaNode object
         """
+        # Check cache first
+        if self.use_cache and self.cache:
+            cached_data = self.cache.get(file_key, node_id)
+            if cached_data is not None:
+                return FigmaNode(**cached_data['nodes'][node_id]['document'])
+        
+        # Not cached, fetch from API
         url = f"{self.BASE_URL}/files/{file_key}/nodes"
         params = {"ids": node_id}
-        response = await self.client.get(url, params=params)
-        response.raise_for_status()
+        response = await self._request_with_retry("GET", url, params=params)
         data = response.json()
+        
+        # Cache the result
+        if self.use_cache and self.cache:
+            self.cache.set(file_key, data, node_id)
         
         # Extract the node data
         node_data = data["nodes"][node_id]["document"]
@@ -121,10 +194,10 @@ class FigmaClient:
             
         Examples:
             https://www.figma.com/file/ABC123/Design → ('ABC123', None)
-            https://www.figma.com/file/ABC123/Design?node-id=1-2 → ('ABC123', '1:2')
+            https://www.figma.com/design/ABC123/Design?node-id=1-2 → ('ABC123', '1:2')
         """
-        # Extract file key
-        file_match = re.search(r'/file/([A-Za-z0-9]+)', url)
+        # Extract file key - support both /file/ and /design/ URLs
+        file_match = re.search(r'/(?:file|design)/([A-Za-z0-9]+)', url)
         file_key = file_match.group(1) if file_match else None
         
         # Extract node ID and convert format (1-2 → 1:2)

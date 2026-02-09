@@ -9,19 +9,22 @@ from ..ai.prompts import (
     WIDGET_GENERATION_SYSTEM_PROMPT,
     WIDGET_GENERATION_USER_PROMPT_TEMPLATE
 )
+from ..utils.token_filter import TokenFilter, FilterLevel
 
 
 class WidgetGenerator:
     """Generates Flutter widget code from design data"""
     
-    def __init__(self, ai_client: AIClient) -> None:
+    def __init__(self, ai_client: AIClient, filter_level: FilterLevel = FilterLevel.BALANCED) -> None:
         """
         Initialize widget generator
         
         Args:
             ai_client: AI client for code generation
+            filter_level: Token filtering strategy (AGGRESSIVE, BALANCED, CONSERVATIVE)
         """
         self.ai_client = ai_client
+        self.token_filter = TokenFilter(filter_level)
     
     async def generate(
         self,
@@ -42,8 +45,22 @@ class WidgetGenerator:
         """
         options = options or {}
         
+        # Apply intelligent token filtering
+        filtered_data = self.token_filter.filter_design_data(design_data, max_depth=4)
+        
+        # Get filtering statistics (for debugging/logging)
+        stats = self.token_filter.get_filtering_stats(design_data, filtered_data)
+        
         # Format design data for prompt
-        design_json = json.dumps(design_data, indent=2)
+        design_json = json.dumps(filtered_data, indent=2)
+        
+        # Final safety check: ensure token limit
+        estimated_tokens = self.token_filter.estimate_tokens(filtered_data)
+        if estimated_tokens > 4000:  # Conservative limit for design data
+            # Fall back to more aggressive filtering
+            self.token_filter.filter_level = FilterLevel.AGGRESSIVE
+            filtered_data = self.token_filter.filter_design_data(design_data, max_depth=3)
+            design_json = json.dumps(filtered_data, indent=2)
         
         # Build user prompt
         user_prompt = WIDGET_GENERATION_USER_PROMPT_TEMPLATE.format(
@@ -104,6 +121,18 @@ class WidgetGenerator:
                 code = f"{import_line}\n\n{code}"
         
         return code
+    
+    def get_filter_stats(self) -> Dict[str, Any]:
+        """
+        Get current token filter statistics
+        
+        Returns:
+            Dictionary with filter configuration and last stats
+        """
+        return {
+            'filter_level': self.token_filter.filter_level.value,
+            'enabled': True
+        }
     
     def validate_widget_name(self, name: str) -> bool:
         """

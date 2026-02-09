@@ -1,6 +1,6 @@
 /**
  * Environment utilities
- * Load and validate environment variables
+ * Load and validate environment variables from mcp-server/.env
  */
 import * as vscode from 'vscode';
 import * as path from 'path';
@@ -8,33 +8,56 @@ import * as fs from 'fs';
 import * as dotenv from 'dotenv';
 
 export interface Environment {
-    FIGMA_ACCESS_TOKEN: string;
-    OPENAI_API_KEY: string;
+    FIGMA_ACCESS_TOKEN?: string;
+    AI_API_KEY?: string;
+    OPENAI_API_KEY?: string;
+    AI_BASE_URL?: string;
+    AI_MODEL?: string;
+    AI_TEMPERATURE?: string;
+    AI_MAX_TOKENS?: string;
     MCP_SERVER_PORT?: string;
     LOG_LEVEL?: string;
 }
 
-export async function loadEnvironment(): Promise<Environment | null> {
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
-        vscode.window.showErrorMessage('Please open a workspace folder');
-        return null;
-    }
+/**
+ * Get path to mcp-server/.env file
+ */
+function getMcpServerEnvPath(context?: vscode.ExtensionContext): string {
+    // Get extension path
+    const extensionPath = context?.extensionPath || __dirname;
 
-    const envPath = path.join(workspaceFolder.uri.fsPath, '.env');
+    // Extension is at: /path/to/FigmaFlow-MCP/vscode-extension
+    // We need: /path/to/FigmaFlow-MCP/mcp-server/.env
+    const projectRoot = path.dirname(extensionPath);
+    return path.join(projectRoot, 'mcp-server', '.env');
+}
 
-    // Check if .env exists
+export async function loadEnvironment(context?: vscode.ExtensionContext): Promise<Environment | null> {
+    const envPath = getMcpServerEnvPath(context);
+
+    // Check if mcp-server/.env exists
     if (!fs.existsSync(envPath)) {
         const action = await vscode.window.showErrorMessage(
-            '🔑 No .env file found. Please configure your API keys.',
-            'Configure Now'
+            '🔑 Configuration not found. Please configure mcp-server/.env with your API keys.',
+            'Open .env',
+            'Show Instructions'
         );
 
-        if (action === 'Configure Now') {
-            await vscode.commands.executeCommand('figmaflow.setupConfiguration');
-            // Try loading again
-            if (fs.existsSync(envPath)) {
-                return loadEnvironmentFile(envPath);
+        if (action === 'Open .env') {
+            // Create .env from example if it doesn't exist
+            const examplePath = path.join(path.dirname(envPath), '.env.example');
+            if (fs.existsSync(examplePath) && !fs.existsSync(envPath)) {
+                fs.copyFileSync(examplePath, envPath);
+            }
+
+            const doc = await vscode.workspace.openTextDocument(envPath);
+            await vscode.window.showTextDocument(doc);
+            vscode.window.showInformationMessage('💡 Please fill in your API keys in the .env file');
+        } else if (action === 'Show Instructions') {
+            const readmePath = path.join(path.dirname(envPath), 'LITELLM_SETUP.md');
+            if (fs.existsSync(readmePath)) {
+                const doc = await vscode.workspace.openTextDocument(readmePath);
+                await vscode.window.showTextDocument(doc);
             }
         }
 
@@ -53,23 +76,27 @@ function loadEnvironmentFile(envPath: string): Environment | null {
         return null;
     }
 
-    // Validate required variables
+    // Get both naming conventions (AI_API_KEY or OPENAI_API_KEY)
     const figmaToken = process.env.FIGMA_ACCESS_TOKEN;
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const aiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY;
 
+    // Warn if missing but don't fail completely
     if (!figmaToken) {
-        vscode.window.showErrorMessage('FIGMA_ACCESS_TOKEN not found in .env file');
-        return null;
+        vscode.window.showWarningMessage('⚠️ FIGMA_ACCESS_TOKEN not found in mcp-server/.env');
     }
 
-    if (!openaiKey) {
-        vscode.window.showErrorMessage('OPENAI_API_KEY not found in .env file');
-        return null;
+    if (!aiKey) {
+        vscode.window.showWarningMessage('⚠️ AI_API_KEY or OPENAI_API_KEY not found in mcp-server/.env');
     }
 
     return {
         FIGMA_ACCESS_TOKEN: figmaToken,
-        OPENAI_API_KEY: openaiKey,
+        AI_API_KEY: process.env.AI_API_KEY,
+        OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+        AI_BASE_URL: process.env.AI_BASE_URL,
+        AI_MODEL: process.env.AI_MODEL,
+        AI_TEMPERATURE: process.env.AI_TEMPERATURE,
+        AI_MAX_TOKENS: process.env.AI_MAX_TOKENS,
         MCP_SERVER_PORT: process.env.MCP_SERVER_PORT,
         LOG_LEVEL: process.env.LOG_LEVEL
     };

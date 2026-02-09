@@ -9,8 +9,8 @@ import { loadEnvironment } from '../utils/environment';
 
 export async function generateTestsCommand(context: vscode.ExtensionContext): Promise<void> {
     try {
-        // Load environment
-        const env = await loadEnvironment();
+        // Load environment from mcp-server/.env
+        const env = await loadEnvironment(context);
         if (!env) return;
 
         // Get Figma URL
@@ -98,12 +98,9 @@ function getServerPath(context: vscode.ExtensionContext): string {
 
     if (customPath) return customPath;
 
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (workspaceFolder) {
-        return path.join(workspaceFolder.uri.fsPath, 'mcp-server', 'src', 'mcp', 'server.py');
-    }
-
-    return path.join(context.extensionPath, 'mcp-server', 'src', 'mcp', 'server.py');
+    // mcp-server is at project root, one level UP from vscode-extension
+    const projectRoot = path.dirname(context.extensionPath);
+    return path.join(projectRoot, 'mcp-server', 'src', 'mcp', 'server.py');
 }
 
 async function insertTestCode(testCode: string, widgetName: string): Promise<void> {

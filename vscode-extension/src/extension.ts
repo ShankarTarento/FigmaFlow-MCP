@@ -11,26 +11,41 @@ import { setupConfigurationCommand } from './commands/setupConfiguration';
 export function activate(context: vscode.ExtensionContext) {
     console.log('FigmaFlow MCP extension activated');
 
-    // Check if .env exists on activation
-    checkEnvironmentSetup();
-
     // Register commands
-    const setupConfig = vscode.commands.registerCommand(
-        'figmaflow.setupConfiguration',
-        () => setupConfigurationCommand(context)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('figmaflow.generateWidget', async () => {
+            await generateWidgetCommand(context);  // Pass context
+        })
     );
 
-    const generateWidget = vscode.commands.registerCommand(
-        'figmaflow.generateWidget',
-        () => generateWidgetCommand(context)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('figmaflow.generateTests', async () => {
+            await generateTestsCommand(context);  // Pass context
+        })
     );
 
-    const generateTests = vscode.commands.registerCommand(
-        'figmaflow.generateTests',
-        () => generateTestsCommand(context)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('figmaflow.setupConfiguration', async () => {
+            await setupConfigurationCommand(context);
+        })
     );
 
-    context.subscriptions.push(setupConfig, generateWidget, generateTests);
+    // Show welcome message on first activation
+    const hasShownWelcome = context.globalState.get('hasShownWelcome');
+    if (!hasShownWelcome) {
+        vscode.window.showInformationMessage(
+            '🎨 FigmaFlow MCP is ready! Configure mcp-server/.env to get started.',
+            'Open Config',
+            'View Docs'
+        ).then(action => {
+            if (action === 'Open Config') {
+                vscode.commands.executeCommand('figmaflow.setupConfiguration');
+            } else if (action === 'View Docs') {
+                vscode.env.openExternal(vscode.Uri.parse('https://github.com/your-repo/FigmaFlow-MCP'));
+            }
+        });
+        context.globalState.update('hasShownWelcome', true);
+    }
 }
 
 export function deactivate() {

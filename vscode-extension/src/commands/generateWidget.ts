@@ -9,8 +9,8 @@ import { loadEnvironment } from '../utils/environment';
 
 export async function generateWidgetCommand(context: vscode.ExtensionContext): Promise<void> {
     try {
-        // Step 1: Load environment variables
-        const env = await loadEnvironment();
+        // Step 1: Load environment variables from mcp-server/.env
+        const env = await loadEnvironment(context);
         if (!env) return;
 
         // Step 2: Get Figma URL from user
@@ -63,7 +63,15 @@ export async function generateWidgetCommand(context: vscode.ExtensionContext): P
                     accessToken: env.FIGMA_ACCESS_TOKEN
                 });
 
-                const designData = JSON.parse(designResult.content[0].text);
+                // Parse response with error handling
+                let designData;
+                const responseText = designResult.content[0]?.text || '';
+                try {
+                    designData = JSON.parse(responseText);
+                } catch (parseError) {
+                    // Show the actual response that failed to parse
+                    throw new Error(`Failed to parse Figma response: ${responseText.substring(0, 200)}`);
+                }
 
                 // Check for errors
                 if (designData.error) {
@@ -75,6 +83,8 @@ export async function generateWidgetCommand(context: vscode.ExtensionContext): P
                 const widgetResult = await mcpClient.callTool('generate_flutter_widget', {
                     designData: designData,
                     widgetName: widgetName,
+                    // Use AI_API_KEY if available (for LiteLLM), fallback to OPENAI_API_KEY
+                    openaiApiKey: env.AI_API_KEY || env.OPENAI_API_KEY,
                     options: {
                         includeImports: true,
                         stateful: false
@@ -103,7 +113,7 @@ export async function generateWidgetCommand(context: vscode.ExtensionContext): P
 }
 
 function getServerPath(context: vscode.ExtensionContext): string {
-    // Get custom server path from settings or use bundled
+    // Get custom server path from settings if configured
     const config = vscode.workspace.getConfiguration('figmaflow');
     const customPath = config.get<string>('mcpServerPath');
 
@@ -111,14 +121,11 @@ function getServerPath(context: vscode.ExtensionContext): string {
         return customPath;
     }
 
-    // Default to workspace mcp-server
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (workspaceFolder) {
-        return path.join(workspaceFolder.uri.fsPath, 'mcp-server', 'src', 'mcp', 'server.py');
-    }
-
-    // Fallback to bundled server
-    return path.join(context.extensionPath, 'mcp-server', 'src', 'mcp', 'server.py');
+    // mcp-server is at project root, one level UP from vscode-extension
+    // extensionPath = /path/to/FigmaFlow-MCP/vscode-extension
+    // we need = /path/to/FigmaFlow-MCP/mcp-server/src/mcp/server.py
+    const projectRoot = path.dirname(context.extensionPath);
+    return path.join(projectRoot, 'mcp-server', 'src', 'mcp', 'server.py');
 }
 
 async function insertCodeIntoEditor(code: string, widgetName: string): Promise<void> {

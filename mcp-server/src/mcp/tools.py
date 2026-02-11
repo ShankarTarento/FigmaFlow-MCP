@@ -3,8 +3,17 @@ MCP Tool Handlers
 Implements the logic for each MCP tool
 """
 import json
-from typing import Any, Dict
+import os
+import sys
+from typing import Any, Dict, Optional
 from mcp.types import TextContent
+
+from ..utils.logger import setup_logger
+from ..utils.errors import handle_error, InvalidDesignError, AIGenerationError
+from ..figma.client import FigmaClient, FigmaNode
+from ..figma.parser import DesignParser
+from ..generators.widget import WidgetGenerator
+from ..ai.client import AIClient
 
 
 class ToolHandlers:
@@ -25,15 +34,9 @@ class ToolHandlers:
         Returns:
             List of TextContent with design data or error
         """
-        from ..utils.logger import setup_logger
-        from ..utils.errors import handle_error, InvalidDesignError
-        
         logger = setup_logger(__name__)
         
         try:
-            from ..figma.client import FigmaClient
-            from ..figma.parser import DesignParser
-            
             figma_client = FigmaClient(args["accessToken"])
             
             # Parse URL to extract file key and node ID
@@ -56,7 +59,6 @@ class ToolHandlers:
                 design_data = parser.parse_layout(node)
             else:
                 file_data = await figma_client.get_file(file_key)
-                from ..figma.client import FigmaNode
                 parser = DesignParser()
                 # Parse first canvas from document
                 document = file_data.get("document", {})
@@ -89,20 +91,13 @@ class ToolHandlers:
         Returns:
             List of TextContent with generated widget code
         """
-        from ..utils.logger import setup_logger
-        from ..utils.errors import handle_error, AIGenerationError
-        
         logger = setup_logger(__name__)
         
-        import sys
         print("[MCP] ========== GENERATE WIDGET CALLED ==========", file=sys.stderr)
         print(f"[MCP] Args type: {type(args)}", file=sys.stderr)
         print(f"[MCP] Args content: {str(args)[:200]}", file=sys.stderr)
         
         try:
-            from ..generators.widget import WidgetGenerator
-            from ..ai.client import AIClient
-            
             print("[MCP] STEP 1: Imports successful", file=sys.stderr)
             
             # Validate args is a dictionary
@@ -169,7 +164,6 @@ class ToolHandlers:
             logger.error(f"Error details: {error_details}")
             
             # Log environment status for debugging
-            import os
             logger.error(f"Environment check - API Key present: {bool(os.getenv('AI_API_KEY'))}")
             logger.error(f"Environment check - Base URL: {os.getenv('AI_BASE_URL') or 'not set'}")
             logger.error(f"Environment check - Model: {os.getenv('AI_MODEL') or 'not set'}")
@@ -199,7 +193,6 @@ class ToolHandlers:
         """
         try:
             from ..generators.test import TestGenerator
-            from ..ai.client import AIClient
             
             ai_client = AIClient()
             generator = TestGenerator(ai_client)

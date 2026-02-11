@@ -10,7 +10,7 @@ import httpx
 from pydantic import BaseModel, Field
 from .cache import FigmaCache
 from ..utils.logger import setup_logger
-from ..utils.errors import RateLimitError, ConfigurationError
+from ..utils.errors import RateLimitError, ConfigurationError, InvalidDesignError
 
 logger = setup_logger(__name__)
 
@@ -175,7 +175,6 @@ class FigmaClient:
             FigmaNode object
         """
         from ..utils.logger import setup_logger
-        from ..utils.errors import InvalidDesignError
         logger = setup_logger(__name__)
         
         # Try cache first (cache-first strategy)

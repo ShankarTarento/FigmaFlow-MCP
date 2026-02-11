@@ -144,6 +144,14 @@ export async function generateWidgetCommand(context: vscode.ExtensionContext): P
                 console.log('[FigmaFlow] content[0] type:', typeof widgetResult.content[0]);
                 const widgetCode = widgetResult.content[0].text;
 
+                // Debug: Log what we received
+                console.log('[FigmaFlow] Widget code received:', {
+                    length: widgetCode.length,
+                    lines: widgetCode.split('\n').length,
+                    firstLine: widgetCode.split('\n')[0],
+                    lastLine: widgetCode.split('\n').slice(-1)[0]
+                });
+
                 // Check if the response is an error JSON
                 let isJsonError = false;
                 try {
@@ -202,6 +210,14 @@ function getServerPath(context: vscode.ExtensionContext): string {
 }
 
 async function insertCodeIntoEditor(code: string, widgetName: string): Promise<void> {
+    // Debug: Log insertion details
+    console.log('[FigmaFlow] Inserting code:', {
+        codeLength: code.length,
+        codeLines: code.split('\n').length,
+        widgetName: widgetName,
+        firstChars: code.substring(0, 100)
+    });
+
     const editor = vscode.window.activeTextEditor;
 
     if (editor && editor.document.languageId === 'dart') {

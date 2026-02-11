@@ -48,12 +48,26 @@ export class MCPClient {
             throw new Error('MCP client not connected. Call connect() first.');
         }
 
+        console.log('[MCP Client] Calling tool:', name);
+        console.log('[MCP Client] Args keys:', Object.keys(args));
+
         const result = await this.client.callTool({
             name,
             arguments: args,
         });
 
-        return result as MCPToolResult;
+        const mcpResult = result as MCPToolResult;
+        console.log('[MCP Client] Raw result:', JSON.stringify(mcpResult).substring(0, 500));
+        console.log('[MCP Client] Result content length:', mcpResult.content?.length);
+        if (mcpResult.content && mcpResult.content.length > 0) {
+            console.log('[MCP Client] First content item:', {
+                type: mcpResult.content[0].type,
+                textLength: mcpResult.content[0].text?.length || 0,
+                textPreview: mcpResult.content[0].text?.substring(0, 100)
+            });
+        }
+
+        return mcpResult;
     }
 
     async disconnect(): Promise<void> {

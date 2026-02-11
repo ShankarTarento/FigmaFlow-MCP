@@ -45,7 +45,7 @@ class WidgetGenerator:
         """
         options = options or {}
         
-        # Apply intelligent token filtering
+        # Apply intelligent token filtering - use BALANCED to preserve design details
         filtered_data = self.token_filter.filter_design_data(design_data, max_depth=4)
         
         # Get filtering statistics (for debugging/logging)
@@ -54,10 +54,10 @@ class WidgetGenerator:
         # Format design data for prompt
         design_json = json.dumps(filtered_data, indent=2)
         
-        # Final safety check: ensure token limit
+        # Check estimated size - only apply fallback filtering if extremely large
         estimated_tokens = self.token_filter.estimate_tokens(filtered_data)
-        if estimated_tokens > 4000:  # Conservative limit for design data
-            # Fall back to more aggressive filtering
+        if len(design_json) > 10000:
+            # Use aggressive filtering only as last resort
             self.token_filter.filter_level = FilterLevel.AGGRESSIVE
             filtered_data = self.token_filter.filter_design_data(design_data, max_depth=3)
             design_json = json.dumps(filtered_data, indent=2)
@@ -69,10 +69,15 @@ class WidgetGenerator:
         )
         
         # Generate code using AI
-        code = await self.ai_client.generate_code(
-            prompt=user_prompt,
-            system_prompt=WIDGET_GENERATION_SYSTEM_PROMPT
-        )
+        try:
+            code = await self.ai_client.generate_code(
+                prompt=user_prompt,
+                system_prompt=WIDGET_GENERATION_SYSTEM_PROMPT
+            )
+            if not code or len(code) < 50:
+                raise ValueError(f"AI returned insufficient code ({len(code)} chars). The design may be too complex or API rate limited.")
+        except Exception as e:
+            raise ValueError(f"AI code generation failed: {str(e)}")
         
         # Post-process code
         code = self._clean_code(code)

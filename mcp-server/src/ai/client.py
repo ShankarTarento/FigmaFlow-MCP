@@ -59,17 +59,30 @@ class AIClient:
         Returns:
             Generated code as string
         """
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=temperature or self.temperature,
-            max_tokens=max_tokens or self.max_tokens
-        )
-        
-        return response.choices[0].message.content or ""
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=temperature or self.temperature,
+                max_tokens=max_tokens or self.max_tokens
+            )
+            
+            content = response.choices[0].message.content or ""
+            
+            if not content:
+                # Log warning if empty response
+                import sys
+                print(f"[AIClient] WARNING: Empty response from AI model", file=sys.stderr)
+                print(f"[AIClient] Finish reason: {response.choices[0].finish_reason}", file=sys.stderr)
+            
+            return content
+        except Exception as e:
+            import sys
+            print(f"[AIClient] API call FAILED: {e}", file=sys.stderr)
+            raise
     
     async def close(self) -> None:
         """Close the client connection"""

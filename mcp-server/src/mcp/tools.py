@@ -154,8 +154,21 @@ class ToolHandlers:
                 options=args.get("options", {})
             )
             
-            logger.info("✓ Successfully generated widget code")
-            return [TextContent(type="text", text=widget_code)]
+            print(f"[MCP] STEP 10: Code generated", file=sys.stderr)
+            print(f"[MCP] - Code length: {len(widget_code)}", file=sys.stderr)
+            print(f"[MCP] - Code lines: {len(widget_code.splitlines())}", file=sys.stderr)
+            print(f"[MCP] - First 100 chars: {widget_code[:100]}", file=sys.stderr)
+            print(f"[MCP] - Last 100 chars: {widget_code[-100:]}", file=sys.stderr)
+            sys.stderr.flush()
+            
+            logger.info(f"✓ Successfully generated widget code - {len(widget_code)} chars, {len(widget_code.splitlines())} lines")
+            
+            print(f"[MCP] STEP 11: Creating TextContent response", file=sys.stderr)
+            result = [TextContent(type="text", text=widget_code)]
+            print(f"[MCP] STEP 12: Returning response", file=sys.stderr)
+            sys.stderr.flush()
+            
+            return result
             
         except Exception as e:
             logger.error(f"Error generating widget: {e}", exc_info=True)
